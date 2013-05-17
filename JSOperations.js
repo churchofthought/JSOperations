@@ -94,36 +94,51 @@ var
 	
 	JSOperationQueue = function(){
 		Observable.call(this);
-		this.operations = [];
+		this._operations = [];
 	};
 	extend(JSOperationQueue, Observable);
 
+	JSOperationQueue.prototype._maxConcurrentOperationCount = 1024;
 
 	/**
 	 * Managing Operations in the Queue
 	 */
 
+	JSOperationQueue.prototype.operations = function(){
+		return this._operations;
+	};
+
 	JSOperationQueue.prototype.addOperation = function(op){
-		this.operations.push(op);
+		this._operations.push(op);
+		this.manageExecution();
+	};
+
+	JSOperationQueue.prototype.addOperations = function(ops){
+		for (var i = ops.length; i--;)
+			this._operations.push(ops[i]);
+		this.manageExecution();
 	};
 
 	JSOperationQueue.prototype.addOperationWithBlock = function(block){
 		this.addOperation(
 			JSBlockOperation.blockOperationWithBlock(block)
 		);
+		this.manageExecution();
 	};
 
 	JSOperationQueue.prototype.removeOperation = function(op){
-		remove(this.operations, op);
+		remove(this._operations, op);
+		this.manageExecution();
 	};
 
 	JSOperationQueue.prototype.operationCount = function(){
-		return this.operations.length;
+		return this._operations.length;
 	};
 
 	JSOperationQueue.prototype.cancelAllOperations = function(){
-		for (var i = this.operations.length; i--;)
-			this.operations[i].cancel();
+		for (var i = this._operations.length; i--;)
+			this._operations[i].cancel();
+		this.manageExecution();
 	};
 
 
@@ -146,7 +161,8 @@ var
 	 */
 
 	JSOperationQueue.prototype.setSuspended = function(suspended){
-		this._suspended = true;
+		this._suspended = suspended;
+		this.manageExecution();
 	};
 
 	JSOperationQueue.prototype.isSuspended = function(){
@@ -165,6 +181,45 @@ var
 	JSOperationQueue.prototype.name = function(){
 		return this._name;
 	}
+
+
+	/**
+	 * Managing the Execution
+	 */
+
+	JSOperationQueue.prototype.manageExecution = function(){
+		if (this._suspended) return;
+
+		var nonExecutingOperations = [];
+
+		var operationsRunning = 0;
+		for (var i = this._operations.length; i--;){
+			var operation = this._operations[i];
+			if (operation.isExecuting())
+				++operationsRunning;
+			else if (operation.isReady()){
+				nonExecutingOperations.splice(_.sortedIndex(nonExecutingOperations, operation, function(op){
+					return op.queuePriority();
+				}), 0, operation);
+			}
+		}
+
+		var oThis = this;
+		for (var i = nonExecutingOperations.length; operationsRunning++ < this._maxConcurrentOperationCount && i--;)
+			var op = nonExecutingOperations[i];
+			setTimeout(function(){
+				if (op.isReady())
+					op.start();
+				else oThis.manageExecution();
+				//op.addEventListener('isExecuting', this);
+			}, 0);
+		}
+	};
+
+	JSOperationQueue.prototype.handleEvent = function(eventName, sender, data){
+		if (eventName == 'isExecuting') this.manageExecution();
+	};
+
 
 
 
