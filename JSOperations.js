@@ -82,7 +82,7 @@ var
 
       while (low < high) {
         var mid = (low + high) >>> 1;
-        if (array[mid].queuePriority() < qp)
+        if (arr[mid].queuePriority() < qp)
           low = mid + 1;
      	else
           high = mid;
@@ -144,7 +144,7 @@ var
 
     Observable.prototype.addEventListener = function(eventName, listener){
     	var listeners = this.listenersForEvent(eventName);
-		if (exists(listeners, listener) !== false)
+		if (exists(listeners, listener) === false)
 			listeners.push(listener);
 
 		return this;
@@ -329,7 +329,8 @@ var
 					if (operation.isExecuting())
 						operation.suspend();
 				}
-			}else this.manageExecution();
+			}
+			this.manageExecution();
 		}else switch (eventName){
 	 		case 'isFinished': remove(this._operations, sender);
 	 		case 'isExecuting': this.manageExecution();
@@ -383,7 +384,7 @@ var
 			this.main();
 		}catch(e){
 			this.isFinished(true);
-			console.log(e.message);
+			throw e;
 			return;
 		}
 		if (!this.isConcurrent())
@@ -448,12 +449,12 @@ var
 	 * Internal handling of events
 	 */
 
-	JSOperation.prototype.handleEvent = function(eventName, sender, propertyVal){
+	JSOperation.prototype.handleEvent = function(eventName, sender, propertyValue){
 
 		switch(eventName){
 			case 'isFinished':
 				if (this._completionBlock)
-					this._completionBlock.execute(this);
+					this._completionBlock.execute(this, this._completionBlock);
 				
 				this.isExecuting(false);
 				break;
@@ -461,21 +462,21 @@ var
 			case 'isCancelled':
 				if (this.isExecuting())
 					if (this._cancellationBlock)
-						this._cancellationBlock.execute(this);
+						this._cancellationBlock.execute(this, this._cancellationBlock);
 				else
 					this.isFinished(true);
 				break;
 
 			case 'isSuspended':
-				if (propertyVal){
+				if (propertyValue){
 					if (this.isExecuting()){
 						this.isExecuting(false);
 						if (this._suspensionBlock)
-							this._suspensionBlock.execute(this);
+							this._suspensionBlock.execute(this, this._suspensionBlock);
 					}
 				}else if (this._resumptionBlock){
 					this.isExecuting(true);
-					this._resumptionBlock.execute(this);
+					this._resumptionBlock.execute(this, this._resumptionBlock);
 				}
 		}
 	}
@@ -517,8 +518,10 @@ var
 	extend(JSBlockOperation, JSOperation);
 
 	JSBlockOperation.prototype.main = function(){
-		for (var i = 0; i < this._executionBlocks.length; ++i)
-			this._executionBlocks[i].execute(this);
+		for (var i = 0; i < this._executionBlocks.length; ++i){
+			var block = this._executionBlocks[i];
+			block.execute(this, block);
+		}
 	};
 
 		
@@ -583,7 +586,8 @@ var
 	};
 
 	JSAsyncBlockOperation.prototype.curr = function(){
-		this._executionBlocks[this._currentBlockIndex].execute(this);
+		var block = this._executionBlocks[this._currentBlockIndex];
+		block.execute(this, block);
 	};
 
 	JSAsyncBlockOperation.prototype.reset = function(){
