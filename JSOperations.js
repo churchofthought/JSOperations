@@ -1,5 +1,7 @@
 var 
-  /* classes */
+    /**
+     * Public Classes
+     */
 	JSOperationQueue,
 	JSAsyncBlockOperation, 
 	JSBlockOperation, 
@@ -7,7 +9,12 @@ var
 	JSBlock,
 	JSInvalidArgumentException,
 
-	/* queue priorities */
+	/**
+	 * Queue Priority Constants
+	 * - you don't have to use these
+	 * - you can use any Number instead
+	 * @type {Number}
+	 */
 	 JSOperationQueuePriorityVeryLow = -8,
 	     JSOperationQueuePriorityLow = -4,
 	  JSOperationQueuePriorityNormal =  0,
@@ -18,6 +25,7 @@ var
 	
 	/**
 	 * applies simply inheritance by copying prototype
+	 * 
 	 * @param  {Function} childClass
 	 * @param  {Function} parentClass
 	 */
@@ -34,8 +42,9 @@ var
 
 	/**
 	 * removes val from arr by splicing
-	 * @param  {[type]} arr
-	 * @param  {[type]} val
+	 * 
+	 * @param  {Array} arr
+	 * @param  {Object} val
 	 * @return {Object} the value removed
 	 */
 	var remove = function(arr, val){
@@ -45,12 +54,48 @@ var
 				
 	};
 
+	/**
+	 * returns whether value exists in array
+	 * 
+	 * @param  {Array} arr
+	 * @param  {Object} val
+	 * @return {Boolean} whether the value exists in array
+	 */
 	var exists = function(arr, val){
 		for (var i = arr.length; i--;)
 			if (arr[i] === val)
-				return true;
+				return i;
+		return false;
 	};
 
+	/**
+	 * gets the insertion index for an op into an array sorted by queue priority
+	 * 
+	 * @param  {Array} arr  the array of operations, sorted by queue priority
+	 * @param  {JSOperation} op  the operation that will be inserted
+	 * @return {Number} the insertion index
+	 */
+	var indexForOpByPriority = function(arr, op) {
+      var low = 0,
+          high = arr.length,
+          qp = op.queuePriority();
+
+      while (low < high) {
+        var mid = (low + high) >>> 1;
+        if (array[mid].queuePriority() < qp)
+          low = mid + 1;
+     	else
+          high = mid;
+      }
+
+      return low;
+    };
+
+	/**
+	 * thrown by JSOperation classes
+	 * 
+	 * @constructor
+	 */
 	JSInvalidArgumentException = function(message){
 		this.message = message;
 	};
@@ -58,22 +103,65 @@ var
 	JSInvalidArgumentException.prototype.name = 'JSInvalidArgumentException';
 
 	/**
-	 * Small Listener/Observable class
+	 * Small Listener/Observable class, used internally by Operations
+	 *
+	 * Listener
+	 *
+	 * Listener.prototype.handleEvent(obj, eventName, data)
+	 *
 	 */
 
-	// var Listener = function(){};
-	// Listener.prototype.handleEvent = function(obj, eventName){};
-
+	/**
+	 * inherited by Operations
+	 *
+	 * @constructor
+	 */
 	var Observable = function(){
 		this._listeners = {};
 	};
-	Observable.prototype.addEventListener = function(eventName, listener){
-		var listeners = this.listenersForEvent(eventName);
-		if (!exists(listeners, listener))
+
+	/**
+     * creates a getter/setter that fires events when value changes
+     * @param  {String|String[]} propertyName  the property name(s)
+     */
+    Observable.createProperty = function(propertyName, defaultValue){
+    	var ivar = '_' + propertyName;
+    	this.prototype[ivar] = defaultValue;
+    	this.prototype[propertyName] = function(val){
+			if (arguments.length && val !== this[ivar])
+				this.fireEvent(propertyName, this[ivar] = val)
+				
+			return this[ivar];
+		};
+		return ivar;
+    };
+
+    Observable.createProperties = function(){
+    	var defaultValue = arguments[arguments.length - 1];
+		for (var i = arguments.length - 1; i--;)
+			this.createProperty(arguments[i], defaultValue);
+    };
+
+    Observable.prototype.addEventListener = function(eventName, listener){
+    	var listeners = this.listenersForEvent(eventName);
+		if (exists(listeners, listener) !== false)
 			listeners.push(listener);
+
+		return this;
+    };
+
+	Observable.prototype.addEventListeners = function(){
+		var listener = arguments[arguments.length - 1];
+
+		for (var i = arguments.length - 1; i--;)
+			this.addEventListener(arguments[i], listener);
+
+		return this;
 	};
+
 	Observable.prototype.removeEventListener = function(eventName, listener){
 		remove(this.listenersForEvent(eventName), listener);
+		return this;
 	};
 	Observable.prototype.listenersForEvent = function(eventName){
 		return this._listeners[eventName] 
@@ -92,103 +180,112 @@ var
 	 * see: http://developer.apple.com/documentation/Cocoa/Reference/NSOperationQueue_class
 	 */
 	
+	/**
+	 * creates an instance of JSOperationQueue
+	 * 
+	 * @constructor
+	 */
 	JSOperationQueue = function(){
 		Observable.call(this);
 		this._operations = [];
+		this.addEventListener('isSuspended', this);
 	};
 	extend(JSOperationQueue, Observable);
 
-	JSOperationQueue.prototype._maxConcurrentOperationCount = 1024;
+	JSOperationQueue.createProperty('maxConcurrentOperationCount', 8);
+	JSOperationQueue.createProperty('isSuspended', false);
+	JSOperationQueue.createProperty('name', 'JSOperationQueue');
 
 	/**
 	 * Managing Operations in the Queue
 	 */
 
+	/**
+	 * returns the currently queued operations
+	 * you should not mutate this, instead use @addOperation and JSOperation.cancel
+	 * 
+	 * @return {JSOperation[]} array of the operations currently in queue
+	 */
 	JSOperationQueue.prototype.operations = function(){
 		return this._operations;
 	};
 
+	/**
+	 * adds an operation to the queue
+	 * 
+	 * @param  {JSOperation} op
+	 * @return {JSOperation} the operation that was added to the queue
+	 */
 	JSOperationQueue.prototype.addOperation = function(op){
-		this._operations.push(op);
-		this.manageExecution();
-	};
-
-	JSOperationQueue.prototype.addOperations = function(ops){
-		for (var i = ops.length; i--;)
-			this._operations.push(ops[i]);
-		this.manageExecution();
-	};
-
-	JSOperationQueue.prototype.addOperationWithBlock = function(block){
-		this.addOperation(
-			JSBlockOperation.blockOperationWithBlock(block)
+		this._operations.push(
+			op.addEventListeners('isExecuting', 'isFinished', this)
 		);
+
+		this.manageExecution();
+
+		return op;
+	};
+
+	/**
+	 * adds multiple operations to the queue
+	 * 
+	 * @param  {...JSOperation} ops
+	 */
+	JSOperationQueue.prototype.addOperations = function(){
+		for (var i = arguments.length; i--;)
+			this._operations.push(
+				arguments[i].addEventListeners('isExecuting', 'isFinished', this)
+			);
 		this.manageExecution();
 	};
 
-	JSOperationQueue.prototype.removeOperation = function(op){
-		remove(this._operations, op);
-		this.manageExecution();
+	/**
+	 * Adds a block operation to the operation queue
+	 * 
+	 * @param  {JSBlock|Function} block  if this is a Function, a JSBlock will be created
+	 * @param  {Object=} ctx  the context for block function, if a function is passed
+	 * @return {JSBlockOperation} the block operation that was created and added to the queue
+	 */
+	JSOperationQueue.prototype.addOperationWithBlock = function(block, ctx){
+		return this.addOperation(
+			JSBlockOperation.blockOperationWithBlock(block, ctx)
+		);
 	};
 
+	/**
+	 * returns the number of operations in the queue
+	 * 
+	 * @return {Number}
+	 */
 	JSOperationQueue.prototype.operationCount = function(){
 		return this._operations.length;
 	};
 
+	/**
+	 * cancels all operations in the queue
+	 */
 	JSOperationQueue.prototype.cancelAllOperations = function(){
 		for (var i = this._operations.length; i--;)
 			this._operations[i].cancel();
-		this.manageExecution();
 	};
-
 
 	/**
-	 * Managing the Number of Running Operations
+	 * suspends the execution of operations
 	 */
-	
-	JSOperationQueue.prototype.maxConcurrentOperationCount = function(){
-		return this._maxConcurrentOperationCount;
+	JSOperationQueue.prototype.suspend = function(){
+		this.isSuspended(true);
 	};
-
-	JSOperationQueue.prototype.setMaxConcurrentOperationCount = 
-		function(maxConcurrentOperationCount){
-			this._maxConcurrentOperationCount = maxConcurrentOperationCount;
-		};
-
-
-	/**
-	 * Suspending Operations
-	 */
-
-	JSOperationQueue.prototype.setSuspended = function(suspended){
-		this._suspended = suspended;
-		this.manageExecution();
-	};
-
-	JSOperationQueue.prototype.isSuspended = function(){
-		return this._suspended;
-	};
-
-
-	/**
-	 * Managing the Queue’s Name
-	 */
-
-	JSOperationQueue.prototype.setName = function(name){
-		this._name = name;
-	};
-
-	JSOperationQueue.prototype.name = function(){
-		return this._name;
-	}
 
 
 	/**
 	 * Managing the Execution
 	 */
 
+	/**
+	 * internal method, manages execution of operations
+	 */
 	JSOperationQueue.prototype.manageExecution = function(){
-		if (this._suspended) return;
+		if (this.isSuspended()) return;
 
 		var nonExecutingOperations = [];
 
@@ -198,26 +295,45 @@ var
 			if (operation.isExecuting())
 				++operationsRunning;
 			else if (operation.isReady()){
-				nonExecutingOperations.splice(_.sortedIndex(nonExecutingOperations, operation, function(op){
-					return op.queuePriority();
-				}), 0, operation);
+				nonExecutingOperations.splice(indexForOpByPriority(nonExecutingOperations, operation), 0, operation);
 			}
 		}
 
 		var oThis = this;
-		for (var i = nonExecutingOperations.length; operationsRunning++ < this._maxConcurrentOperationCount && i--;)
+		for (var i = nonExecutingOperations.length; 
+			operationsRunning++ < this._maxConcurrentOperationCount && i--; ){
 			var op = nonExecutingOperations[i];
 			setTimeout(function(){
 				if (op.isReady())
-					op.start();
+					if (op.isSuspended())
+						op.resume();
+					else
+						op.start();
 				else oThis.manageExecution();
-				//op.addEventListener('isExecuting', this);
 			}, 0);
 		}
 	};
 
-	JSOperationQueue.prototype.handleEvent = function(eventName, sender, data){
-		if (eventName == 'isExecuting') this.manageExecution();
+	/**
+	 * internal method, implemented to respond to Observable events
+	 * 
+	 * @param  {String} eventName
+	 * @param  {Object} sender
+	 * @param  {Object} data
+	 */
+	JSOperationQueue.prototype.handleEvent = function(eventName, sender, propertyValue){
+		if (sender === this && eventName === 'isSuspended'){
+			if (propertyValue){
+				for (var i = this._operations.length; i--;){
+					var operation = this._operations[i];
+					if (operation.isExecuting())
+						operation.suspend();
+				}
+			}else this.manageExecution();
+		}else switch (eventName){
+	 		case 'isFinished': remove(this._operations, sender);
+	 		case 'isExecuting': this.manageExecution();
+	 	}
 	};
 
 
@@ -230,25 +346,31 @@ var
 	 * see: http://developer.apple.com/documentation/Cocoa/Reference/NSOperation
 	 */
 
+	/**
+	 * @constructor
+	 */
 	JSOperation = function(){
 		Observable.call(this);
 		this._dependencies = [];
-		this.addEventListener('isFinished', this);
+
+		this.addEventListeners('isFinished', 'isSuspended', 'isCancelled', this);
 	};
 	extend(JSOperation, Observable);
 
-	JSOperation.prototype._isCancelled = false;
-	JSOperation.prototype._isExecuting = false;
-	JSOperation.prototype._isFinished = false;
-	JSOperation.prototype._isConcurrent = false;
-	JSOperation.prototype._queuePriority = JSOperationQueuePriorityNormal;
-	JSOperation.prototype._threadPriority = 0.5;
-
+	JSOperation.createProperty('queuePriority', JSOperationQueuePriorityNormal);
+	JSOperation.createProperties(
+		'isConcurrent', 'isExecuting', 'isFinished', 
+		'isSuspended', 'isCancelled', false
+	);
+	
 
 	/** 
 	 * Executing the Operation
 	 */
 	
+	/**
+	 * starts the operation
+	 */
 	JSOperation.prototype.start = function(){
 		if (!this.isReady()){
 			throw new JSInvalidArgumentException(
@@ -256,51 +378,62 @@ var
 			);
 			return;
 		}
-		this._isFinished = !(this._isExecuting = true);
-		this.main();
-		this._isFinished = !(this._isExecuting = false);
-		this.fireEvent('isFinished');
+		this.isExecuting(true);
+		try {
+			this.main();
+		}catch(e){
+			this.isFinished(true);
+			console.log(e.message);
+			return;
+		}
+		if (!this.isConcurrent())
+			this.isFinished(true);
 	};
 
 	JSOperation.prototype.main = function(){};
 
-	JSOperation.prototype.completionBlock = function(){
-		return this._completionBlock;
-	};
-
-	JSOperation.prototype.setCompletionBlock = function(block){
-		this._completionBlock = block;
-	};
-
 
 	/**
-	 * Cancelling Operations
+	 * Suspending/Cancelling/Resuming Operations
 	 */
-	
+
 	JSOperation.prototype.cancel = function(){
-		this._isCancelled = true;
+		this.isCancelled(true);
 	};
 
+	JSOperation.prototype.suspend = function(){
+		if (this.isExecuting())
+			this.isSuspended(true);
+	};
+
+	JSOperation.prototype.resume = function(){
+		this.isSuspended(false);
+	};
+
+	JSOperation.prototype.finish = function(){
+		this.isFinished(true);
+	}
+
+	function createBlockProperty(name){
+		var ivar = '_' + name;
+		JSOperation.prototype[name] = function(block,ctx){
+			if (!arguments.length) return this[ivar];
+			this[ivar] = 
+				block instanceof Function
+					? new JSBlock(block, ctx)
+					: block;
+		};
+	}
+
+	createBlockProperty('completionBlock');
+	createBlockProperty('suspensionBlock');
+	createBlockProperty('resumptionBlock');
+	createBlockProperty('cancellationBlock');
 
 	/**
 	 * Getting the Operation Status
 	 */
-	
-	JSOperation.prototype.isCancelled = function(){
-		return this._isCancelled;
-	};
-	
-	JSOperation.prototype.isExecuting = function(){
-		return this._isExecuting;
-	};
 
-	JSOperation.prototype.isFinished = function(){
-		return this._isFinished;
-	};
-
-	JSOperation.prototype.isConcurrent = function(){
-		return this._isConcurrent;
-	};
 
 	JSOperation.prototype.isReady = function(){
 		for (var i = this._dependencies.length; i--;)
@@ -309,15 +442,41 @@ var
 		return true;
 	};
 
-	JSOperation.prototype.handleEvent = function(eventName, sender){
+
+
+	/**
+	 * Internal handling of events
+	 */
+
+	JSOperation.prototype.handleEvent = function(eventName, sender, propertyVal){
+
 		switch(eventName){
 			case 'isFinished':
 				if (this._completionBlock)
-					this._completionBlock.execute();
-			break;
+					this._completionBlock.execute(this);
+				
+				this.isExecuting(false);
+				break;
 
-			case 'isReady':
-				this.fireEvent('isReady');
+			case 'isCancelled':
+				if (this.isExecuting())
+					if (this._cancellationBlock)
+						this._cancellationBlock.execute(this);
+				else
+					this.isFinished(true);
+				break;
+
+			case 'isSuspended':
+				if (propertyVal){
+					if (this.isExecuting()){
+						this.isExecuting(false);
+						if (this._suspensionBlock)
+							this._suspensionBlock.execute(this);
+					}
+				}else if (this._resumptionBlock){
+					this.isExecuting(true);
+					this._resumptionBlock.execute(this);
+				}
 		}
 	}
 
@@ -327,55 +486,17 @@ var
 	 */
 	
 	JSOperation.prototype.addDependency = function(op){
-		op.addEventListener('isFinished', this);
 		this._dependencies.push(op);
 	};
 	
 	JSOperation.prototype.removeDependency = function(op){
-		op.removeEventListener('isFinished', this);
 		remove(this._dependencies, op);
 	};
 
-	// warning: do not modify dependencies obtained below
+	// warning: do not modify dependencies obtained from this fn
 	JSOperation.prototype.dependencies = function(){
 		return this._dependencies;
 	};
-
-
-	/**
-	 * Prioritizing Operations in an Operation Queue
-	 */
-
-	JSOperation.prototype.queuePriority = function(){
-		return this._queuePriority;
-	};
-
-	JSOperation.prototype.setQueuePriority = function(queuePriority){
-		this._queuePriority = queuePriority;
-	};
-
-	
-	/**
-	 * Managing the Execution Priority
-	 */
-
-	JSOperation.prototype.threadPriority = function(){
-		return this._threadPriority;
-	};
-
-	JSOperation.prototype.setThreadPriority = function(threadPriority){
-		this._threadPriority = threadPriority;
-	};	
-
-
-	/**
-	 * Waiting for Completion
-	 */
-
-	JSOperation.prototype.waitUntilFinished = function(){
-
-	};
-
 
 
 
@@ -384,15 +505,20 @@ var
 	 * see: http://developer.apple.com/documentation/Cocoa/Reference/NSBlockOperation
 	 */
 
-	JSBlockOperation = function(){
+	JSBlockOperation = function(block, ctx){
 		JSOperation.call(this);
-		this._executionBlocks = [];
+
+		this._executionBlocks = block 
+			? [block instanceof Function 
+				? new JSBlock(block, ctx) 
+				: block] 
+			: [];
 	};
 	extend(JSBlockOperation, JSOperation);
 
 	JSBlockOperation.prototype.main = function(){
 		for (var i = 0; i < this._executionBlocks.length; ++i)
-			this._executionBlocks[i].execute();
+			this._executionBlocks[i].execute(this);
 	};
 
 		
@@ -400,21 +526,36 @@ var
 	 * Managing the Blocks in the Operation
 	 */
 	
-	JSBlockOperation.blockOperationWithBlock = function(block){
-		var op = new this();
-		op.addExecutionBlock(block);
-		return op;
+	JSBlockOperation.blockOperationWithBlock = function(block, ctx){
+		return new this().addExecutionBlock(block, ctx);
 	};
 
-	JSBlockOperation.prototype.addExecutionBlock = function(block){
+	JSBlockOperation.prototype.addExecutionBlock = function(block, ctx){
 		if (this.isExecuting() || this.isFinished()){
 			throw new JSInvalidArgumentException(
 				'*** -[__JSOperationInternal addExecutionBlock]: operation is already executing or finished'
 			);
 			return;
 		}
-		this._executionBlocks.push(block);
+
+
+		this._executionBlocks.push(
+			block instanceof Function 
+				? new JSBlock(block, ctx) 
+				: block
+		);
+
+		return this;
 	};
+
+	JSBlockOperation.prototype.context = function(){
+		return this.executionBlock().context();
+	};
+
+	JSBlockOperation.prototype.executionBlock = function(){
+		return this._executionBlocks[0];
+	};
+
 
 	JSBlockOperation.prototype.executionBlocks = function(){
 		return this._executionBlocks;
@@ -431,24 +572,43 @@ var
 	 */
 
 	JSAsyncBlockOperation = function(){
-		JSBlockOperation.call(this);
+		JSBlockOperation.apply(this, arguments);
 	};
 	extend(JSAsyncBlockOperation, JSBlockOperation);
+	JSAsyncBlockOperation.prototype._isConcurrent = true;
+	JSAsyncBlockOperation.prototype._currentBlockIndex = -1;
 
-	JSAsyncBlockOperation.prototype.start = function(){
-		this._isFinished = !(this._isExecuting = true);
-		var i = 0, oThis = this, 
-		execNextBlock = function(){
-			if (i >= oThis._executionBlocks.length){
-				oThis._isFinished = !(oThis._isExecuting = false);
-				oThis.fireEvent('isFinished');
-				return;
-			}
-			oThis._executionBlocks[i++].execute(execNextBlock);
-		};
-		execNextBlock();
+	JSAsyncBlockOperation.prototype.main = function(){
+		this.next();
 	};
 
+	JSAsyncBlockOperation.prototype.curr = function(){
+		this._executionBlocks[this._currentBlockIndex].execute(this);
+	};
+
+	JSAsyncBlockOperation.prototype.reset = function(){
+		this._currentBlockIndex = 0;
+		this.curr();
+	};
+
+	JSAsyncBlockOperation.prototype.seek = function(idx){
+		this._currentBlockIndex += idx;
+		this.curr();
+	};
+
+	JSAsyncBlockOperation.prototype.goto = function(block){
+		this._currentBlockIndex = exists(this._executionBlocks, block);
+		this.curr();
+	};
+
+	JSAsyncBlockOperation.prototype.next = function(){
+		if (++this._currentBlockIndex >= this._executionBlocks.length){
+			this.isFinished(true);
+			return;
+		}
+		
+		this.curr();
+	};
 
 
 
