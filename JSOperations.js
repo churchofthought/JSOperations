@@ -1,7 +1,7 @@
 var 
-    /**
-     * Public Classes
-     */
+	/**
+	 * Public Classes
+	 */
 	JSOperationQueue,
 	JSAsyncBlockOperation, 
 	JSBlockOperation, 
@@ -16,9 +16,9 @@ var
 	 * @type {Number}
 	 */
 	 JSOperationQueuePriorityVeryLow = -8,
-	     JSOperationQueuePriorityLow = -4,
+		 JSOperationQueuePriorityLow = -4,
 	  JSOperationQueuePriorityNormal =  0,
-	    JSOperationQueuePriorityHigh =  4,
+		JSOperationQueuePriorityHigh =  4,
 	JSOperationQueuePriorityVeryHigh =  8;
 
 (function(){
@@ -76,20 +76,20 @@ var
 	 * @return {Number} the insertion index
 	 */
 	var indexForOpByPriority = function(arr, op) {
-      var low = 0,
-          high = arr.length,
-          qp = op.queuePriority();
+	  var low = 0,
+		  high = arr.length,
+		  qp = op.queuePriority();
 
-      while (low < high) {
-        var mid = (low + high) >>> 1;
-        if (arr[mid].queuePriority() < qp)
-          low = mid + 1;
-     	else
-          high = mid;
-      }
+	  while (low < high) {
+		var mid = (low + high) >>> 1;
+		if (arr[mid].queuePriority() < qp)
+		  low = mid + 1;
+		else
+		  high = mid;
+	  }
 
-      return low;
-    };
+	  return low;
+	};
 
 	/**
 	 * thrown by JSOperation classes
@@ -121,34 +121,34 @@ var
 	};
 
 	/**
-     * creates a getter/setter that fires events when value changes
-     * @param  {String|String[]} propertyName  the property name(s)
-     */
-    Observable.createProperty = function(propertyName, defaultValue){
-    	var ivar = '_' + propertyName;
-    	this.prototype[ivar] = defaultValue;
-    	this.prototype[propertyName] = function(val){
+	 * creates a getter/setter that fires events when value changes
+	 * @param  {String|String[]} propertyName  the property name(s)
+	 */
+	Observable.createProperty = function(propertyName, defaultValue){
+		var ivar = '_' + propertyName;
+		this.prototype[ivar] = defaultValue;
+		this.prototype[propertyName] = function(val){
 			if (arguments.length && val !== this[ivar])
 				this.fireEvent(propertyName, this[ivar] = val)
 				
 			return this[ivar];
 		};
 		return ivar;
-    };
+	};
 
-    Observable.createProperties = function(){
-    	var defaultValue = arguments[arguments.length - 1];
+	Observable.createProperties = function(){
+		var defaultValue = arguments[arguments.length - 1];
 		for (var i = arguments.length - 1; i--;)
 			this.createProperty(arguments[i], defaultValue);
-    };
+	};
 
-    Observable.prototype.addEventListener = function(eventName, listener){
-    	var listeners = this.listenersForEvent(eventName);
+	Observable.prototype.addEventListener = function(eventName, listener){
+		var listeners = this.listenersForEvent(eventName);
 		if (exists(listeners, listener) === false)
 			listeners.push(listener);
 
 		return this;
-    };
+	};
 
 	Observable.prototype.addEventListeners = function(){
 		var listener = arguments[arguments.length - 1];
@@ -332,9 +332,9 @@ var
 			}
 			this.manageExecution();
 		}else switch (eventName){
-	 		case 'isFinished': remove(this._operations, sender);
-	 		case 'isExecuting': this.manageExecution();
-	 	}
+			case 'isFinished': remove(this._operations, sender);
+			case 'isExecuting': this.manageExecution();
+		}
 	};
 
 
