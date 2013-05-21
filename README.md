@@ -47,12 +47,14 @@ Here's what you can do:
 
 ```javascript
 var queue = new JSOperationQueue();
+
 var req1 = new JSAsyncBlockOperation(function(op, blk){
    $.get('data1', function(data){
       blk.context().data1 = data;
       op.finish();
    });
 }, {});
+
 var req2 = new JSAsyncBlockOperation(function(op, blk){
    $.get('data2', function(data){
       blk.context().data2 = data;
@@ -64,7 +66,10 @@ var resOp = new JSBlockOperation(function(op, blk){
     console.log("data1:", this.data1);
     console.log("data2:", this.data2);
 }, req1.context());
+
 resOp.dependencies([req1, req2]);
+
+queue.addOperations(req1, req2, resOp);
 ```
 
 Dependencies can be much more complex and intertwined, the above is just a simple example.
