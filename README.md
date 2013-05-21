@@ -33,7 +33,7 @@ Because javascript code cannot be 'terminated', it is your job to set these bloc
 
 
 JSOperation is the main operation class. To write a custom operation, inherit from JSOperation and override main(), the main execution function for an operation.
-If your operation is not over when main() returns, you should override isConcurrent to return false. When your operation is done, call operation.finish() to let the queue, and other observers know that your operation is over.
+If your operation is not over when main() returns, you should override isConcurrent to return true. When your operation is done, call operation.finish() to let the queue, and other observers know that your operation is over.
 
 There are 2 classes to make concurrent and non-concurrent operations without subclassing.
 These are JSBlockOperation and JSAsyncBlockOperation.
