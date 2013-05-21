@@ -6,7 +6,7 @@ Operations can be suspended, cancelled, and can have a queuePriority set, which 
 
 
 Here's a quick example of what JSOperations does:
-Calculating fibonacci of 500 would normally freeze the UI. 
+Calculating fibonacci for n=500 would normally freeze the UI. 
 But if we write an operation that suspends itself, the queue will automatically resume it on the next paint cycle.
 
 
@@ -22,7 +22,20 @@ var fib = new JSAsyncBlockOperation(function(op, blk){
   
 }, {i: 1, results:[0,1]});
 fib.resumptionBlock(fib.executionBlock()); // fib should resume at its execution block
+
+fib.completionBlock(function(op){
+	console.log("fib of " + this.i + " is " + this.results.pop());
+}, fib.context());
 ```
+
+When an operation is resumed, its resumptionBlock is called. That is utilized in the above example.
+
+There are 4 related blocks you can set on an operation:
+suspensionBlock, resumptionBlock, cancellationBlock, and completionBlock
+
+Because javascript code cannot be 'terminated', it is your job to set these blocks if you desire your operation to be re-entrant / terminatable.
+In the above example, we don't need to set a suspensionBlock because there are no resources like lingering ajax requests to cancel.
+
 
 Operations can also have dependencies. 
 Let's say you need to get some json data from 2 seperate ajax requests and do something only when both requests have returned.
@@ -53,12 +66,6 @@ resOp.dependencies([req1, req2]);
 Dependencies can be much more complex and intertwined, the above is just a simple example.
 
 
-
-When an operation is resumed, its resumptionBlock is called. 
-There are 4 related blocks you can set on an operation:
-suspensionBlock, resumptionBlock, cancellationBlock, and completionBlock
-
-Because javascript code cannot be 'terminated', it is your job to set these blocks if you desire your operation to be re-entrant / terminatable.
 
 
 JSOperation is the main operation class. To write a custom operation, inherit from JSOperation and override main(), the main execution function for an operation.
