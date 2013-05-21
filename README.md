@@ -76,6 +76,10 @@ queue.addOperations(req1, req2, resOp);
 
 Dependencies can be much more complex and intertwined, the above is just a simple example.
 
+### Cancelling Operations
+Operations can be cancelled by calling ```operation.cancel()```
+To cancel all operations from a queue, simply call ```queue.cancelAllOperations()```
+
 
 ### Custom Operations
 
