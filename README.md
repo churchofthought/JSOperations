@@ -78,7 +78,12 @@ Dependencies can be much more complex and intertwined, the above is just a simpl
 
 ### Cancelling Operations
 Operations can be cancelled by calling ```operation.cancel()```
+
 To cancel all operations from a queue, simply call ```queue.cancelAllOperations()```
+
+Operations should free up lingering ajax requests, and other resources when cancelled. 
+In order to respond to a cancellation, be sure to set a cancellationBlock for any operations you create.
+
 
 
 ### Custom Operations
