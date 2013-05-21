@@ -276,6 +276,10 @@ var
 		this.isSuspended(true);
 	};
 
+	JSOperationQueue.prototype.resume = function(){
+		this.isSuspended(false);
+	};
+
 
 	/**
 	 * Managing the Execution
