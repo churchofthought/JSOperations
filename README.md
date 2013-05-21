@@ -24,8 +24,37 @@ var fib = new JSAsyncBlockOperation(function(op, blk){
 fib.resumptionBlock(fib.executionBlock()); // fib should resume at its execution block
 ```
 
-When an operation is resumed, its resumptionBlock is called. 
+Operations can also have dependencies. 
+Let's say you need to get some json data from 2 seperate ajax requests and do something only when both requests have returned.
+Here's what you can do:
 
+```javascript
+var queue = new JSOperationQueue();
+var req1 = new JSAsyncBlockOperation(function(op, blk){
+   $.get('data1', function(data){
+      blk.context().data1 = data;
+      op.finish();
+   });
+}, {});
+var req2 = new JSAsyncBlockOperation(function(op, blk){
+   $.get('data2', function(data){
+      blk.context().data2 = data;
+      op.finish();
+   });
+}, req1.context());
+
+var resOp = new JSBlockOperation(function(op, blk){
+    console.log("data1:", this.data1);
+    console.log("data2:", this.data2);
+}, req1.context());
+resOp.dependencies([req1, req2]);
+```
+
+Dependencies can be much more complex and intertwined, the above is just a simple example.
+
+
+
+When an operation is resumed, its resumptionBlock is called. 
 There are 4 related blocks you can set on an operation:
 suspensionBlock, resumptionBlock, cancellationBlock, and completionBlock
 
