@@ -26,6 +26,8 @@ fib.resumptionBlock(fib.executionBlock()); // fib should resume at its execution
 fib.completionBlock(function(op){
 	console.log("fib of " + this.i + " is " + this.results.pop());
 }, fib.context());
+
+queue.addOperation(fib);
 ```
 
 When an operation is resumed, its resumptionBlock is called. That is utilized in the above example.
