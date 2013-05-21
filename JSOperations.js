@@ -126,7 +126,8 @@ var
 	 */
 	Observable.createProperty = function(propertyName, defaultValue){
 		var ivar = '_' + propertyName;
-		this.prototype[ivar] = defaultValue;
+		if (arguments.length >= 2)
+			this.prototype[ivar] = defaultValue;
 		this.prototype[propertyName] = function(val){
 			if (arguments.length){
 				if (val !== this[ivar])
@@ -364,11 +365,13 @@ var
 	};
 	extend(JSOperation, Observable);
 
+	JSOperation.createProperty('dependencies');
 	JSOperation.createProperty('queuePriority', JSOperationQueuePriorityNormal);
 	JSOperation.createProperties(
 		'isConcurrent', 'isExecuting', 'isFinished', 
 		'isSuspended', 'isCancelled', false
 	);
+
 	
 
 	/** 
@@ -499,11 +502,6 @@ var
 	JSOperation.prototype.removeDependency = function(op){
 		remove(this._dependencies, op);
 	};
-
-	JSOperation.prototype.dependencies = function(){
-		return this._dependencies;
-	};
-
 
 
 	/** 
