@@ -500,7 +500,6 @@ var
 		remove(this._dependencies, op);
 	};
 
-	// warning: do not modify dependencies obtained from this fn
 	JSOperation.prototype.dependencies = function(){
 		return this._dependencies;
 	};
