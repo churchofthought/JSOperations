@@ -37,6 +37,10 @@ Because javascript code cannot be 'terminated', it is your job to set these bloc
 In the above example, we don't need to set a suspensionBlock because there are no resources like lingering ajax requests to cancel.
 
 
+
+
+### Dependencies
+
 Operations can also have dependencies. 
 Let's say you need to get some json data from 2 seperate ajax requests and do something only when both requests have returned.
 Here's what you can do:
@@ -66,7 +70,7 @@ resOp.dependencies([req1, req2]);
 Dependencies can be much more complex and intertwined, the above is just a simple example.
 
 
-
+### Custom Operations
 
 JSOperation is the main operation class. To write a custom operation, inherit from JSOperation and override main(), the main execution function for an operation.
 If your operation is not over when main() returns, you should override isConcurrent to return true. When your operation is done, call operation.finish() to let the queue, and other observers know that your operation is over.
