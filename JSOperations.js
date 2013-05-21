@@ -128,9 +128,11 @@ var
 		var ivar = '_' + propertyName;
 		this.prototype[ivar] = defaultValue;
 		this.prototype[propertyName] = function(val){
-			if (arguments.length && val !== this[ivar])
-				this.fireEvent(propertyName, this[ivar] = val)
-				
+			if (arguments.length){
+				if (val !== this[ivar])
+					this.fireEvent(propertyName, this[ivar] = val)
+				return this;
+			}
 			return this[ivar];
 		};
 		return ivar;
@@ -248,7 +250,7 @@ var
 	 */
 	JSOperationQueue.prototype.addOperationWithBlock = function(block, ctx){
 		return this.addOperation(
-			JSBlockOperation.blockOperationWithBlock(block, ctx)
+			new JSBlockOperation(block, ctx)
 		);
 	};
 
