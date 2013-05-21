@@ -24,8 +24,8 @@ var fib = new JSAsyncBlockOperation(function(op, blk){
 fib.resumptionBlock(fib.executionBlock()); // fib should resume at its execution block
 ```
 
-When an operation is resumed, it's resumptionBlock is called. 
-When an operation is suspended, it's suspensionBlock is called.
+When an operation is resumed, its resumptionBlock is called. 
+
 There are 4 related blocks you can set on an operation:
 suspensionBlock, resumptionBlock, cancellationBlock, and completionBlock
 
