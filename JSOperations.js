@@ -632,34 +632,14 @@ var
 		this._context = context || {};
 	};
 
-	JSBlock.prototype._executionFunction = function(){};
-
-
-	/**
-	 * Manage the block's execution function
-	 */
-	
-	JSBlock.prototype.executionFunction = function(){
-		return this._executionFunction;
-	};
-
-	JSBlock.prototype.setExecutionFunction = function(fn){
-		this._executionFunction = fn;
-	};
-
+	extend(JSBlock, Observable);
+	JSBlock.createProperty('context');
+	JSBlock.createProperty('executionFunction', function(){});
 
 	/**
 	 * Manage the block's execution context
 	 */
 	
-	JSBlock.prototype.context = function(){
-		return this._context;
-	};
-
-	JSBlock.prototype.setContext = function(context){
-		this._context = context;
-	};
-
 	JSBlock.prototype.setContextValueForKey = function(key, value){
 		this._context[key] = value;
 	};
