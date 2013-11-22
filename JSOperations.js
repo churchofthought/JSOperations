@@ -1,10 +1,11 @@
-var 
+var JSOperations = (function(){
 	/**
 	 * Public Classes
 	 */
+	var
 	JSOperationQueue,
-	JSAsyncBlockOperation, 
-	JSBlockOperation, 
+	JSAsyncBlockOperation,
+	JSBlockOperation,
 	JSOperation,
 	JSBlock,
 	JSInvalidArgumentException,
@@ -15,13 +16,11 @@ var
 	 * - you can use any Number instead
 	 * @type {Number}
 	 */
-	 JSOperationQueuePriorityVeryLow = -8,
-		 JSOperationQueuePriorityLow = -4,
-	  JSOperationQueuePriorityNormal =  0,
-		JSOperationQueuePriorityHigh =  4,
+	JSOperationQueuePriorityVeryLow = -8,
+	JSOperationQueuePriorityLow = -4,
+	JSOperationQueuePriorityNormal =  0,
+	JSOperationQueuePriorityHigh =  4,
 	JSOperationQueuePriorityVeryHigh =  8;
-
-(function(){
 	
 	/**
 	 * applies simply inheritance by copying prototype
@@ -50,8 +49,7 @@ var
 	var remove = function(arr, val){
 		for (var i = arr.length; i--;)
 			if (arr[i] === val)
-				return arr.splice(i, 1); 
-				
+				return arr.splice(i, 1);
 	};
 
 	/**
@@ -76,19 +74,19 @@ var
 	 * @return {Number} the insertion index
 	 */
 	var indexForOpByPriority = function(arr, op) {
-	  var low = 0,
-		  high = arr.length,
-		  qp = op.queuePriority();
+		var low = 0,
+			high = arr.length,
+			qp = op.queuePriority();
 
-	  while (low < high) {
-		var mid = (low + high) >>> 1;
-		if (arr[mid].queuePriority() < qp)
-		  low = mid + 1;
-		else
-		  high = mid;
-	  }
+		while (low < high) {
+			var mid = (low + high) >>> 1;
+			if (arr[mid].queuePriority() < qp)
+				low = mid + 1;
+			else
+				high = mid;
+		}
 
-	  return low;
+		return low;
 	};
 
 	/**
@@ -167,8 +165,8 @@ var
 		return this;
 	};
 	Observable.prototype.listenersForEvent = function(eventName){
-		return this._listeners[eventName] 
-				|| (this._listeners[eventName] = []);
+		return this._listeners[eventName] ||
+			(this._listeners[eventName] = []);
 	};
 	Observable.prototype.fireEvent = function(eventName, data){
 		var listeners = this.listenersForEvent(eventName);
@@ -307,7 +305,7 @@ var
 		}
 
 		var oThis = this;
-		for (var i = nonExecutingOperations.length; 
+		for (i = nonExecutingOperations.length;
 			operationsRunning++ < this._maxConcurrentOperationCount && i--; ){
 			var op = nonExecutingOperations[i];
 			setTimeout(function(){
@@ -368,7 +366,7 @@ var
 	JSOperation.createProperty('dependencies');
 	JSOperation.createProperty('queuePriority', JSOperationQueuePriorityNormal);
 	JSOperation.createProperties(
-		'isConcurrent', 'isExecuting', 'isFinished', 
+		'isConcurrent', 'isExecuting', 'isFinished',
 		'isSuspended', 'isCancelled', false
 	);
 
@@ -382,19 +380,16 @@ var
 	 * starts the operation
 	 */
 	JSOperation.prototype.start = function(){
-		if (!this.isReady()){
+		if (!this.isReady())
 			throw new JSInvalidArgumentException(
 				'*** -[__JSOperationInternal start]: receiver is not yet ready to execute'
 			);
-			return;
-		}
 		this.isExecuting(true);
 		try {
 			this.main();
 		}catch(e){
 			this.isFinished(true);
 			throw e;
-			return;
 		}
 		if (!this.isConcurrent())
 			this.isFinished(true);
@@ -422,15 +417,15 @@ var
 
 	JSOperation.prototype.finish = function(){
 		this.isFinished(true);
-	}
+	};
 
 	function createBlockProperty(name){
 		var ivar = '_' + name;
 		JSOperation.prototype[name] = function(block,ctx){
 			if (!arguments.length) return this[ivar];
-			this[ivar] = 
-				block instanceof Function
-					? new JSBlock(block, ctx)
+			this[ivar] =
+				block instanceof Function ?
+					new JSBlock(block, ctx)
 					: block;
 		};
 	}
@@ -488,7 +483,7 @@ var
 					this._resumptionBlock.execute(this, this._resumptionBlock);
 				}
 		}
-	}
+	};
 
 
 	/**
@@ -512,10 +507,10 @@ var
 	JSBlockOperation = function(block, ctx){
 		JSOperation.call(this);
 
-		this._executionBlocks = block 
-			? [block instanceof Function 
-				? new JSBlock(block, ctx) 
-				: block] 
+		this._executionBlocks = block ?
+			[block instanceof Function ?
+				new JSBlock(block, ctx)
+				: block]
 			: [];
 	};
 	extend(JSBlockOperation, JSOperation);
@@ -541,13 +536,12 @@ var
 			throw new JSInvalidArgumentException(
 				'*** -[__JSOperationInternal addExecutionBlock]: operation is already executing or finished'
 			);
-			return;
 		}
 
 
 		this._executionBlocks.push(
-			block instanceof Function 
-				? new JSBlock(block, ctx) 
+			block instanceof Function ?
+				new JSBlock(block, ctx)
 				: block
 		);
 
@@ -658,4 +652,15 @@ var
 		return this._executionFunction.apply(this._context, arguments);
 	};
 
+	return {
+		JSOperationQueue: JSOperationQueue,
+		JSAsyncBlockOperation: JSAsyncBlockOperation,
+		JSBlockOperation: JSBlockOperation,
+		JSOperation: JSOperation,
+		JSBlock: JSBlock,
+		JSInvalidArgumentException: JSInvalidArgumentException
+	};
 })();
+
+if (module.exports)
+	module.exports = JSOperations;
